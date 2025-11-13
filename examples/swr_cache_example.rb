@@ -107,7 +107,7 @@ class MockApiClient
 end
 
 # Override for demo purposes
-original_method = client.api_client.method(:fetch_prompt_from_api)
+client.api_client.method(:fetch_prompt_from_api)
 client.api_client.define_singleton_method(:fetch_prompt_from_api) do |name, **options|
   MockApiClient.fetch_prompt_from_api(name, **options)
 end

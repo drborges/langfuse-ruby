@@ -3,9 +3,9 @@
 require "spec_helper"
 
 RSpec.describe Langfuse::Config do
-  describe "SWR configuration options" do
-    let(:config) { described_class.new }
+  let(:config) { described_class.new }
 
+  describe "SWR configuration options" do
     describe "default values" do
       it "sets cache_stale_while_revalidate to false by default" do
         expect(config.cache_stale_while_revalidate).to be false
@@ -40,7 +40,7 @@ RSpec.describe Langfuse::Config do
         config.secret_key = "sk_test"
       end
 
-      context "cache_stale_ttl validation" do
+      context "when validating cache_stale_ttl" do
         it "accepts positive values" do
           config.cache_stale_ttl = 300
           expect { config.validate! }.not_to raise_error
@@ -68,7 +68,7 @@ RSpec.describe Langfuse::Config do
         end
       end
 
-      context "cache_refresh_threads validation" do
+      context "when validating cache_refresh_threads" do
         it "accepts positive values" do
           config.cache_refresh_threads = 5
           expect { config.validate! }.not_to raise_error
@@ -99,7 +99,7 @@ RSpec.describe Langfuse::Config do
         end
       end
 
-      context "SWR with cache backend validation" do
+      context "when validating SWR with cache backend" do
         it "allows SWR with Rails cache backend" do
           config.cache_backend = :rails
           config.cache_stale_while_revalidate = true
