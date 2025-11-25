@@ -77,13 +77,13 @@ module Langfuse
 
       entry = get_entry_with_metadata(key)
 
-      if entry && entry[:fresh_until] > Time.now
+      if entry && entry["fresh_until"] > Time.now
         # FRESH - return immediately
-        entry[:data]
-      elsif entry && entry[:stale_until] > Time.now
+        entry["data"]
+      elsif entry && entry["stale_until"] > Time.now
         # REVALIDATE - return stale + refresh in background
         schedule_refresh(key, &)
-        entry[:data] # Instant response! ✨
+        entry["data"] # Instant response! ✨
       else
         # STALE or MISS - must fetch synchronously
         fetch_and_cache_with_metadata(key, &)
@@ -237,18 +237,15 @@ module Langfuse
     # Get cache entry with SWR metadata (timestamps)
     #
     # @param key [String] Cache key
-    # @return [Hash, nil] Entry with :data, :fresh_until, :stale_until keys, or nil
+    # @return [Hash, nil] Entry with "data", "fresh_until", "stale_until" keys, or nil
     def get_entry_with_metadata(key)
       raw = Rails.cache.read("#{namespaced_key(key)}:metadata")
       return nil unless raw
 
-      parsed = JSON.parse(raw, symbolize_names: true)
-
+      parsed = JSON.parse(raw)
       # Convert timestamp strings back to Time objects
-      parsed[:fresh_until] = Time.parse(parsed[:fresh_until]) if parsed[:fresh_until].is_a?(String)
-
-      parsed[:stale_until] = Time.parse(parsed[:stale_until]) if parsed[:stale_until].is_a?(String)
-
+      parsed["fresh_until"] = Time.parse(parsed["fresh_until"]) if parsed["fresh_until"].is_a?(String)
+      parsed["stale_until"] = Time.parse(parsed["stale_until"]) if parsed["stale_until"].is_a?(String)
       parsed
     rescue JSON::ParserError, ArgumentError
       nil

@@ -51,9 +51,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         new_data = "new_value"
 
         fresh_entry = {
-          data: fresh_data,
-          fresh_until: Time.now + 30,
-          stale_until: Time.now + 150
+          "data" => fresh_data,
+          "fresh_until" => Time.now + 30,
+          "stale_until" => Time.now + 150
         }
 
         allow(adapter_with_swr).to receive(:get_entry_with_metadata)
@@ -70,9 +70,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         new_data = "new_value"
 
         fresh_entry = {
-          data: fresh_data,
-          fresh_until: Time.now + 30,
-          stale_until: Time.now + 150
+          "data" => fresh_data,
+          "fresh_until" => Time.now + 30,
+          "stale_until" => Time.now + 150
         }
 
         allow(adapter_with_swr).to receive(:get_entry_with_metadata)
@@ -91,9 +91,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         new_data = "new_value"
 
         stale_entry = {
-          data: stale_data,
-          fresh_until: Time.now - 30, # Expired
-          stale_until: Time.now + 90  # Still within grace period
+          "data" => stale_data,
+          "fresh_until" => Time.now - 30, # Expired
+          "stale_until" => Time.now + 90  # Still within grace period
         }
 
         allow(adapter_with_swr).to receive(:get_entry_with_metadata)
@@ -111,9 +111,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         new_data = "new_value"
 
         stale_entry = {
-          data: stale_data,
-          fresh_until: Time.now - 30, # Expired
-          stale_until: Time.now + 90  # Still within grace period
+          "data" => stale_data,
+          "fresh_until" => Time.now - 30, # Expired
+          "stale_until" => Time.now + 90  # Still within grace period
         }
 
         allow(adapter_with_swr).to receive(:get_entry_with_metadata)
@@ -132,9 +132,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         new_data = "new_value"
 
         expired_entry = {
-          data: stale_data,
-          fresh_until: Time.now - 150, # Expired
-          stale_until: Time.now - 30   # Past grace period
+          "data" => stale_data,
+          "fresh_until" => Time.now - 150, # Expired
+          "stale_until" => Time.now - 30   # Past grace period
         }
 
         allow(adapter_with_swr).to receive(:get_entry_with_metadata)
@@ -155,9 +155,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         new_data = "new_value"
 
         expired_entry = {
-          data: stale_data,
-          fresh_until: Time.now - 150, # Expired
-          stale_until: Time.now - 30   # Past grace period
+          "data" => stale_data,
+          "fresh_until" => Time.now - 150, # Expired
+          "stale_until" => Time.now - 30   # Past grace period
         }
 
         allow(adapter_with_swr).to receive(:get_entry_with_metadata)
@@ -273,9 +273,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         stale_until_time = Time.now + 150
 
         metadata_json = {
-          data: "test_value",
-          fresh_until: fresh_until_time.to_s,
-          stale_until: stale_until_time.to_s
+          "data" => "test_value",
+          "fresh_until" => fresh_until_time.to_s,
+          "stale_until" => stale_until_time.to_s
         }.to_json
 
         allow(rails_cache).to receive(:read)
@@ -285,9 +285,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         result = adapter_with_swr.send(:get_entry_with_metadata, cache_key)
 
         expect(result).to be_a(Hash)
-        expect(result[:data]).to eq("test_value")
-        expect(result[:fresh_until]).to be_a(Time)
-        expect(result[:stale_until]).to be_a(Time)
+        expect(result["data"]).to eq("test_value")
+        expect(result["fresh_until"]).to be_a(Time)
+        expect(result["stale_until"]).to be_a(Time)
       end
     end
 
@@ -353,9 +353,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
       allow(Time).to receive(:now).and_return(freeze_time)
 
       expected_metadata = {
-        data: value,
-        fresh_until: freeze_time + ttl,
-        stale_until: freeze_time + ttl + stale_ttl
+        "data" => value,
+        "fresh_until" => freeze_time + ttl,
+        "stale_until" => freeze_time + ttl + stale_ttl
       }.to_json
 
       expect(rails_cache).to receive(:write)
@@ -448,9 +448,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
 
       # Simulate stale cache entry
       stale_entry = {
-        data: initial_value,
-        fresh_until: (Time.now - 30).to_s, # Past fresh time
-        stale_until: (Time.now + 90).to_s # Still within stale period
+        "data" => initial_value,
+        "fresh_until" => (Time.now - 30).to_s, # Past fresh time
+        "stale_until" => (Time.now + 90).to_s # Still within stale period
       }
       memory_cache["langfuse:#{integration_cache_key}:metadata"] = stale_entry.to_json
 
@@ -459,9 +459,9 @@ RSpec.describe Langfuse::RailsCacheAdapter do
 
       # 3. Simulate completed background refresh
       fresh_entry = {
-        data: updated_value,
-        fresh_until: (Time.now + 60).to_s,
-        stale_until: (Time.now + 150).to_s
+        "data" => updated_value,
+        "fresh_until" => (Time.now + 60).to_s,
+        "stale_until" => (Time.now + 150).to_s
       }
       memory_cache["langfuse:#{integration_cache_key}"] = updated_value
       memory_cache["langfuse:#{integration_cache_key}:metadata"] = fresh_entry.to_json
