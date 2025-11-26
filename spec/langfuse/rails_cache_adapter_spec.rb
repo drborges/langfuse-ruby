@@ -93,6 +93,36 @@ RSpec.describe Langfuse::RailsCacheAdapter do
           expect(adapter.thread_pool).to be_nil
         end
       end
+
+      context "with logger parameter" do
+        it "uses provided logger" do
+          custom_logger = Logger.new($stdout)
+          adapter = described_class.new(logger: custom_logger)
+          expect(adapter.logger).to eq(custom_logger)
+        end
+
+        it "creates default stdout logger when no logger provided and Rails.logger not available" do
+          allow(Rails).to receive(:respond_to?).and_return(true)
+          allow(Rails).to receive(:respond_to?).with(:logger).and_return(false)
+          adapter = described_class.new
+          expect(adapter.logger).to be_a(Logger)
+        end
+
+        it "uses Rails.logger as default when Rails is available" do
+          rails_logger = Logger.new($stdout)
+          allow(Rails).to receive(:respond_to?).and_return(true)
+          allow(Rails).to receive(:logger).and_return(rails_logger)
+          adapter = described_class.new
+          expect(adapter.logger).to eq(rails_logger)
+        end
+
+        it "creates stdout logger when Rails.logger returns nil" do
+          allow(Rails).to receive(:respond_to?).and_return(true)
+          allow(Rails).to receive(:logger).and_return(nil)
+          adapter = described_class.new
+          expect(adapter.logger).to be_a(Logger)
+        end
+      end
     end
 
     context "when Rails.cache is not available" do
@@ -698,21 +728,62 @@ RSpec.describe Langfuse::RailsCacheAdapter do
         adapter_with_swr.send(:schedule_refresh, cache_key) { "refreshed_value" }
       end
 
-      it "releases the refresh lock even if block raises" do
+      it "logs error and releases lock when refresh block raises error" do
         cache_key = "test_key"
         refresh_lock_key = "langfuse:#{cache_key}:refreshing"
+        mock_logger = instance_double(Logger)
 
-        allow(adapter_with_swr).to receive(:acquire_refresh_lock)
+        adapter_with_logger = described_class.new(
+          ttl: ttl,
+          stale_ttl: stale_ttl,
+          refresh_threads: refresh_threads,
+          logger: mock_logger
+        )
+
+        allow(adapter_with_logger).to receive(:acquire_refresh_lock)
           .with(refresh_lock_key)
           .and_return(true)
-        allow(adapter_with_swr.thread_pool).to receive(:post).and_yield
+        allow(adapter_with_logger.thread_pool).to receive(:post).and_yield
 
-        expect(adapter_with_swr).to receive(:release_lock)
+        expect(mock_logger).to receive(:error)
+          .with(/Langfuse cache refresh failed for key 'test_key': RuntimeError - test error/)
+
+        expect(adapter_with_logger).to receive(:release_lock)
           .with(refresh_lock_key)
 
+        # Error should be caught and logged, not raised
         expect do
-          adapter_with_swr.send(:schedule_refresh, cache_key) { raise "test error" }
-        end.to raise_error("test error")
+          adapter_with_logger.send(:schedule_refresh, cache_key) { raise "test error" }
+        end.not_to raise_error
+      end
+
+      it "logs error with correct exception class and message" do
+        cache_key = "greeting:1"
+        refresh_lock_key = "langfuse:#{cache_key}:refreshing"
+        mock_logger = instance_double(Logger)
+
+        adapter_with_logger = described_class.new(
+          ttl: ttl,
+          stale_ttl: stale_ttl,
+          refresh_threads: refresh_threads,
+          logger: mock_logger
+        )
+
+        allow(adapter_with_logger).to receive(:acquire_refresh_lock)
+          .with(refresh_lock_key)
+          .and_return(true)
+        allow(adapter_with_logger.thread_pool).to receive(:post).and_yield
+
+        expect(mock_logger).to receive(:error)
+          .with("Langfuse cache refresh failed for key 'greeting:1': ArgumentError - Invalid prompt data")
+
+        expect(adapter_with_logger).to receive(:release_lock)
+          .with(refresh_lock_key)
+
+        # Custom exception type
+        adapter_with_logger.send(:schedule_refresh, cache_key) do
+          raise ArgumentError, "Invalid prompt data"
+        end
       end
     end
 

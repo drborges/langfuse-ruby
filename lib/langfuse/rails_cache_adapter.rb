@@ -2,6 +2,7 @@
 
 require "concurrent"
 require "json"
+require "logger"
 
 module Langfuse
   # rubocop:disable Metrics/ClassLength
@@ -16,7 +17,7 @@ module Langfuse
   #   adapter.get("greeting:1") # => prompt_data
   #
   class RailsCacheAdapter
-    attr_reader :ttl, :namespace, :lock_timeout, :stale_ttl, :thread_pool
+    attr_reader :ttl, :namespace, :lock_timeout, :stale_ttl, :thread_pool, :logger
 
     # Initialize a new Rails.cache adapter
     #
@@ -25,14 +26,16 @@ module Langfuse
     # @param lock_timeout [Integer] Lock timeout in seconds for stampede protection (default: 10)
     # @param stale_ttl [Integer, nil] Stale TTL for SWR (default: nil, disabled)
     # @param refresh_threads [Integer] Number of background refresh threads (default: 5)
+    # @param logger [Logger, nil] Logger instance for error reporting (default: nil, creates new logger)
     # @raise [ConfigurationError] if Rails.cache is not available
-    def initialize(ttl: 60, namespace: "langfuse", lock_timeout: 10, stale_ttl: nil, refresh_threads: 5)
+    def initialize(ttl: 60, namespace: "langfuse", lock_timeout: 10, stale_ttl: nil, refresh_threads: 5, logger: nil)
       validate_rails_cache!
 
       @ttl = ttl
       @namespace = namespace
       @lock_timeout = lock_timeout
       @stale_ttl = stale_ttl
+      @logger = logger || default_logger
       @thread_pool = initialize_thread_pool(refresh_threads) if stale_ttl
     end
 
@@ -207,6 +210,8 @@ module Langfuse
     # Prevents duplicate refreshes by using a refresh lock. If another process
     # is already refreshing this key, this method returns immediately.
     #
+    # Errors during refresh are caught and logged to prevent thread crashes.
+    #
     # @param key [String] Cache key
     # @yield Block to execute to fetch fresh data
     # @return [void]
@@ -218,6 +223,8 @@ module Langfuse
       thread_pool.post do
         value = yield
         set_with_metadata(key, value)
+      rescue StandardError => e
+        logger.error("Langfuse cache refresh failed for key '#{key}': #{e.class} - #{e.message}")
       ensure
         release_lock(refresh_lock_key)
       end
@@ -345,6 +352,17 @@ module Langfuse
 
       raise ConfigurationError,
             "Rails.cache is not available. Rails cache backend requires Rails with a configured cache store."
+    end
+
+    # Create a default logger
+    #
+    # @return [Logger]
+    def default_logger
+      if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        Rails.logger
+      else
+        Logger.new($stdout, level: Logger::WARN)
+      end
     end
   end
   # rubocop:enable Metrics/ClassLength
