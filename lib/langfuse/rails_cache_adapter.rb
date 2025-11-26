@@ -82,13 +82,16 @@ module Langfuse
 
       if entry && entry["fresh_until"] > Time.now
         # FRESH - return immediately
+        logger.debug("CACHE HIT!")
         entry["data"]
       elsif entry && entry["stale_until"] > Time.now
         # REVALIDATE - return stale + refresh in background
+        logger.debug("CACHE STALE!")
         schedule_refresh(key, &)
         entry["data"] # Instant response! ✨
       else
-        # STALE or MISS - must fetch synchronously
+        # MISS - must fetch synchronously
+        logger.debug("CACHE MISS!")
         fetch_and_cache_with_metadata(key, &)
       end
     end
